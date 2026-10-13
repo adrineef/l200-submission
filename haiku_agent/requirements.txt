@@ -1,0 +1,8 @@
+google-cloud-aiplatform[adk,agent_engines]
+google-adk[a2a]
+google-genai
+opentelemetry-exporter-gcp-trace
+google-cloud-secret-manager
+google-cloud-dlp
+requests
+pydantic

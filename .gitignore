@@ -1,0 +1,15 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.adk/
+haiku_agent_tmp*/
+.env
+*.key
+*.pem
+*secret*
+*credentials*.json
+.terraform/
+*.tfstate
+*.tfstate.*

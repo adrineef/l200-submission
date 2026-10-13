@@ -1,0 +1,17 @@
+[project]
+name = "haiku-agent"
+version = "0.1.0"
+description = "Production ADK Haiku Multi-Agent System"
+requires-python = ">=3.10"
+dependencies = [
+    "google-adk>=1.0.0",
+    "google-genai>=1.0.0",
+    "requests>=2.31.0",
+    "pydantic>=2.0.0",
+    "pytest>=8.0.0",
+    "opentelemetry-sdk>=1.20.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["haiku_agent/tests"]
