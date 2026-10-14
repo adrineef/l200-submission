@@ -23,6 +23,8 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel, Field
+from .illustration_tool import generate_haiku_illustration
+
 
 # ---------------------------------------------------------------------------
 # 1. Authentication via ADC (No API Key)
@@ -678,6 +680,19 @@ haiku_critic_agent = LlmAgent(
     generate_content_config=types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS),
 )
 
+haiku_illustrator_agent = LlmAgent(
+    name="haiku_illustrator_agent",
+    model="gemini-2.5-flash",
+    description="Génère l'illustration du haïku validé.",
+    instruction=(
+        "Haïku : {draft_haiku}\n"
+        "Appelle `generate_haiku_illustration` une seule fois avec un prompt visuel "
+        "décrivant la scène. Puis réponds : 'Illustration générée.' Rien d'autre."
+    ),
+    tools=[generate_haiku_illustration],
+    output_key="illustration_result",
+)
+
 
 # LoopAgent pattern for iterative poetic refinement (max 2 iterations)
 composition_refinement_loop = LoopAgent(
@@ -712,6 +727,7 @@ root_agent = SequentialAgent(
     sub_agents=[
         inspiration_parallel_agent,
         composition_refinement_loop,
+        haiku_illustrator_agent,
         haiku_publisher_agent,
     ],
     after_agent_callback=async_memory_and_audit_after_agent_callback,
