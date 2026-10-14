@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atelier Haïku — Poésie &amp; Estampe Ukiyo-e</title>
+  <style>
+    :root {
+      --bg-washi: #f7f3eb;
+      --bg-card: #fffdf9;
+      --ink-primary: #1e242b;
+      --ink-secondary: #5a626a;
+      --accent-vermilion: #b83b2b;
+      --accent-vermilion-hover: #962d20;
+      --accent-indigo: #23395d;
+      --accent-jade: #2b6e46;
+      --accent-gold: #f3dfb2;
+      --border-soft: #e2d9c8;
+      --shadow-card: 0 12px 32px rgba(30, 36, 43, 0.08);
+      --radius-lg: 16px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-washi);
+      background-image: radial-gradient(circle at 15% 15%, rgba(184, 59, 43, 0.04) 0%, transparent 45%),
+                        radial-gradient(circle at 85% 80%, rgba(35, 57, 93, 0.05) 0%, transparent 50%);
+      color: var(--ink-primary);
+      min-height: 100vh;
+      padding: 2rem 1rem 4rem;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .seal-stamp {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border: 2px solid var(--accent-vermilion);
+      color: var(--accent-vermilion);
+      font-family: "Georgia", "Noto Serif JP", serif;
+      font-weight: 700;
+      font-size: 1.2rem;
+      border-radius: 6px;
+      margin-bottom: 0.75rem;
+      letter-spacing: 1px;
+      background: rgba(184, 59, 43, 0.05);
+    }
+
+    header h1 {
+      font-family: "Georgia", "Times New Roman", serif;
+      font-size: 2.1rem;
+      font-weight: 700;
+      color: var(--ink-primary);
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      color: var(--ink-secondary);
+      font-size: 0.98rem;
+      margin-top: 0.35rem;
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-lg);
+      padding: 1.75rem;
+      box-shadow: var(--shadow-card);
+      margin-bottom: 1.5rem;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1.2fr;
+      gap: 1rem;
+      align-items: end;
+    }
+
+    @media (max-width: 680px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .field label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ink-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .field input,
+    .field select {
+      padding: 0.7rem 0.9rem;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      background: #ffffff;
+      color: var(--ink-primary);
+      font-size: 0.96rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .field input:focus,
+    .field select:focus {
+      outline: none;
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 0 3px rgba(35, 57, 93, 0.12);
+    }
+
+    .submit-row {
+      margin-top: 1.25rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background-color: var(--accent-vermilion);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0.8rem 2rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--accent-vermilion-hover);
+    }
+
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(1px);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Error Banner */
+    .error-banner {
+      display: none;
+      background-color: #fdf0ee;
+      border: 1px solid #e6a8a0;
+      color: #8f2418;
+      border-radius: var(--radius-sm);
+      padding: 0.9rem 1.1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.94rem;
+      font-weight: 500;
+    }
+
+    .error-banner.visible {
+      display: block;
+    }
+
+    /* Progress Bar Section */
+    .progress-section {
+      display: none;
+    }
+
+    .progress-section.visible {
+      display: block;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.65rem;
+      font-size: 0.92rem;
+      color: var(--accent-indigo);
+      font-weight: 600;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 10px;
+      background-color: #ebe4d6;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent-indigo), var(--accent-vermilion));
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+
+    .steps-list {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0.5rem;
+      list-style: none;
+      font-size: 0.78rem;
+      text-align: center;
+      color: var(--ink-secondary);
+    }
+
+    .step-item {
+      padding: 0.4rem 0.25rem;
+      border-radius: 6px;
+      background: #f4efe4;
+      border: 1px solid transparent;
+      transition: all 0.25s ease;
+    }
+
+    .step-item.active {
+      background: #eef3f8;
+      border-color: var(--accent-indigo);
+      color: var(--accent-indigo);
+      font-weight: 600;
+    }
+
+    .step-item.done {
+      background: #eaf4ee;
+      border-color: var(--accent-jade);
+      color: var(--accent-jade);
+    }
+
+    /* Result Card */
+    .result-card {
+      display: none;
+      text-align: center;
+    }
+
+    .result-card.visible {
+      display: block;
+    }
+
+    .badges-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .badge-valid {
+      background-color: #e6f4ea;
+      color: var(--accent-jade);
+      border: 1px solid #b7dfc4;
+    }
+
+    .badge-kigo {
+      background-color: #fbf3dc;
+      color: #7c5813;
+      border: 1px solid #e6cf94;
+    }
+
+    .haiku-poem {
+      font-family: "Georgia", "Noto Serif JP", "Times New Roman", serif;
+      font-size: 1.5rem;
+      line-height: 2.05;
+      color: var(--ink-primary);
+      padding: 1.4rem 1rem;
+      margin: 0 auto 1.5rem;
+      max-width: 520px;
+      border-top: 1px solid var(--border-soft);
+      border-bottom: 1px solid var(--border-soft);
+      text-align: center;
+    }
+
+    .haiku-line {
+      display: block;
+      letter-spacing: 0.02em;
+    }
+
+    mark.kigo-highlight {
+      background-color: var(--accent-gold);
+      color: var(--ink-primary);
+      padding: 0.08rem 0.38rem;
+      border-radius: 4px;
+      font-weight: 600;
+      box-shadow: inset 0 -2px 0 rgba(184, 59, 43, 0.35);
+    }
+
+    .illustration-wrapper {
+      margin: 1.5rem auto;
+      max-width: 460px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-soft);
+      background: #f2ece1;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+    }
+
+    .illustration-wrapper img {
+      display: block;
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+    }
+
+    .illustration-fallback {
+      display: none;
+      padding: 2rem 1rem;
+      color: var(--ink-secondary);
+      font-style: italic;
+      font-size: 0.9rem;
+    }
+
+    /* HITL Approval Box */
+    .hitl-box {
+      background: #f8f4ec;
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      padding: 1.1rem;
+      margin: 1.5rem 0;
+    }
+
+    .hitl-title {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--ink-primary);
+      margin-bottom: 0.75rem;
+    }
+
+    .hitl-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 0.85rem;
+    }
+
+    .btn-approve {
+      background-color: var(--accent-jade);
+      color: #ffffff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1.35rem;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-reject {
+      background-color: #ffffff;
+      color: var(--accent-vermilion);
+      border: 1px solid var(--accent-vermilion);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1.35rem;
+      font-size: 0.92rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-approve:disabled,
+    .btn-reject:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .approval-status {
+      margin-top: 0.65rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .approval-status.approved {
+      color: var(--accent-jade);
+    }
+
+    .approval-status.rejected {
+      color: var(--accent-vermilion);
+    }
+
+    /* Utility Actions */
+    .actions-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.85rem;
+      margin-top: 1.25rem;
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--ink-primary);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1.2rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: background-color 0.15s, border-color 0.15s;
+    }
+
+    .btn-secondary:hover {
+      background-color: #f4efe4;
+      border-color: #cbbba0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="seal-stamp" aria-hidden="true">俳句</div>
+      <h1>Atelier Haïku</h1>
+      <p>Composition poétique 5-7-5 et illustration ukiyo-e par agents ADK</p>
+    </header>
+
+    <!-- Formulaire de création -->
+    <section class="panel" aria-label="Paramètres du haïku">
+      <form id="haiku-form" novalidate>
+        <div class="form-grid">
+          <div class="field">
+            <label for="city-input">Ville *</label>
+            <input
+              id="city-input"
+              name="city"
+              type="text"
+              placeholder="ex. Kyoto, Paris, Annecy…"
+              maxlength="80"
+              required
+            />
+          </div>
+
+          <div class="field">
+            <label for="season-select">Saison</label>
+            <select id="season-select" name="season">
+              <option value="auto" selected>Automatique (selon la date)</option>
+              <option value="printemps">Printemps</option>
+              <option value="été">Été</option>
+              <option value="automne">Automne</option>
+              <option value="hiver">Hiver</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="mood-input">Atmosphère (optionnel)</label>
+            <input
+              id="mood-input"
+              name="mood"
+              type="text"
+              placeholder="ex. brume matinale, serein…"
+              maxlength="100"
+            />
+          </div>
+        </div>
+
+        <div class="submit-row">
+          <button type="submit" id="create-btn" class="btn-primary">
+            Créer mon haïku
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Message d'erreur clair -->
+    <div id="error-banner" class="error-banner" role="alert"></div>
+
+    <!-- Barre de progression par étapes -->
+    <section id="progress-section" class="panel progress-section" aria-live="polite">
+      <div class="progress-header">
+        <span id="progress-label">Initialisation des agents poétiques…</span>
+        <span id="progress-percent">0 %</span>
+      </div>
+      <div class="progress-track">
+        <div id="progress-fill" class="progress-fill"></div>
+      </div>
+      <ul class="steps-list">
+        <li class="step-item" data-stage="1">1. Kigo &amp; Images</li>
+        <li class="step-item" data-stage="2">2. Composition</li>
+        <li class="step-item" data-stage="3">3. Critique 5-7-5</li>
+        <li class="step-item" data-stage="4">4. Ukiyo-e</li>
+        <li class="step-item" data-stage="5">5. Publication</li>
+      </ul>
+    </section>
+
+    <!-- Carte résultat -->
+    <section id="result-card" class="panel result-card" aria-live="polite">
+      <div class="badges-row">
+        <span id="badge-575" class="badge badge-valid">✓ 5-7-5 validé</span>
+        <span class="badge badge-kigo">Kigo : <strong id="kigo-badge-text">—</strong></span>
+      </div>
+
+      <div id="haiku-lines" class="haiku-poem" aria-label="Haïku généré"></div>
+
+      <div class="illustration-wrapper">
+        <img
+          id="haiku-image"
+          alt="Illustration ukiyo-e du haïku"
+        />
+        <div id="illustration-fallback" class="illustration-fallback">
+          Illustration en cours…
+        </div>
+      </div>
+
+      <!-- Validation Humaine (HITL) -->
+      <div id="approval-section" class="hitl-box">
+        <p class="hitl-title">Validation éditoriale (Human-in-the-Loop) : souhaitez-vous publier ce haïku ?</p>
+        <div class="hitl-buttons">
+          <button type="button" id="approve-btn" class="btn-approve">Approuver</button>
+          <button type="button" id="reject-btn" class="btn-reject">Refuser</button>
+        </div>
+        <div id="approval-status" class="approval-status"></div>
+      </div>
+
+      <!-- Actions Copier & Télécharger -->
+      <div class="actions-row">
+        <button type="button" id="copy-btn" class="btn-secondary">
+          Copier le haïku
+        </button>
+        <a
+          id="download-btn"
+          class="btn-secondary"
+          href="#"
+          download="haiku_illustration.png"
+        >
+          Télécharger l'image
+        </a>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    (function () {
+      const form = document.getElementById("haiku-form");
+      const cityInput = document.getElementById("city-input");
+      const seasonSelect = document.getElementById("season-select");
+      const moodInput = document.getElementById("mood-input");
+      const createBtn = document.getElementById("create-btn");
+
+      const errorBanner = document.getElementById("error-banner");
+      const progressSection = document.getElementById("progress-section");
+      const progressLabel = document.getElementById("progress-label");
+      const progressPercent = document.getElementById("progress-percent");
+      const progressFill = document.getElementById("progress-fill");
+      const stepItems = Array.from(document.querySelectorAll(".step-item"));
+
+      const resultCard = document.getElementById("result-card");
+      const kigoBadgeText = document.getElementById("kigo-badge-text");
+      const haikuLinesContainer = document.getElementById("haiku-lines");
+      const haikuImage = document.getElementById("haiku-image");
+      const illustrationFallback = document.getElementById("illustration-fallback");
+
+      const approveBtn = document.getElementById("approve-btn");
+      const rejectBtn = document.getElementById("reject-btn");
+      const approvalStatus = document.getElementById("approval-status");
+      const copyBtn = document.getElementById("copy-btn");
+      const downloadBtn = document.getElementById("download-btn");
+
+      let currentSessionId = null;
+      let currentPlainHaiku = "";
+
+      const STEP_TO_STAGE = {
+        inspiration: 1,
+        kigo_research: 1,
+        theme_imagery: 1,
+        composer: 2,
+        refinement: 2,
+        critic: 3,
+        illustrator: 4,
+        publisher: 5
+      };
+
+      function showError(message) {
+        errorBanner.textContent = message;
+        errorBanner.classList.add("visible");
+      }
+
+      function clearError() {
+        errorBanner.textContent = "";
+        errorBanner.classList.remove("visible");
+      }
+
+      function updateProgressStage(stageNumber, labelText) {
+        progressSection.classList.add("visible");
+        if (labelText) {
+          progressLabel.textContent = labelText;
+        }
+        const pct = Math.min(100, Math.max(10, Math.round((stageNumber / 5) * 100)));
+        progressFill.style.width = pct + "%";
+        progressPercent.textContent = pct + " %";
+
+        stepItems.forEach((item) => {
+          const itemStage = parseInt(item.getAttribute("data-stage"), 10);
+          item.classList.remove("active", "done");
+          if (itemStage < stageNumber) {
+            item.classList.add("done");
+          } else if (itemStage === stageNumber) {
+            item.classList.add("active");
+          }
+        });
+      }
+
+      function escapeHtml(str) {
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function escapeRegExp(str) {
+        return String(str).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+
+      function highlightKigoInLine(lineText, kigoWord) {
+        const safeLine = escapeHtml(lineText);
+        const cleanKigo = (kigoWord || "").trim();
+        if (!cleanKigo) {
+          return safeLine;
+        }
+        const safeKigo = escapeHtml(cleanKigo);
+        const fullRegex = new RegExp("(" + escapeRegExp(safeKigo) + ")", "gi");
+        if (fullRegex.test(safeLine)) {
+          return safeLine.replace(fullRegex, '<mark class="kigo-highlight">$1</mark>');
+        }
+        // Highlight individual significant words of the kigo if phrase is inflected
+        const tokens = safeKigo.split(/\s+/).filter((w) => w.length >= 3);
+        if (tokens.length > 0) {
+          const tokenRegex = new RegExp("\\b(" + tokens.map(escapeRegExp).join("|") + ")\\b", "gi");
+          return safeLine.replace(tokenRegex, '<mark class="kigo-highlight">$1</mark>');
+        }
+        return safeLine;
+      }
+
+      let imageRetryTimer = null;
+
+      function renderHaikuCard(data) {
+        if (imageRetryTimer) {
+          clearTimeout(imageRetryTimer);
+          imageRetryTimer = null;
+        }
+
+        currentSessionId = data.session_id || null;
+        const rawLines = Array.isArray(data.lines) && data.lines.length > 0
+          ? data.lines
+          : String(data.haiku || "").split(/\r?\n/).filter(Boolean);
+
+        const threeLines = rawLines.slice(0, 3);
+        currentPlainHaiku = threeLines.join("\n");
+
+        const kigo = data.kigo || "nature";
+        kigoBadgeText.textContent = kigo;
+
+        haikuLinesContainer.innerHTML = threeLines
+          .map((line) => '<span class="haiku-line">' + highlightKigoInLine(line, kigo) + "</span>")
+          .join("");
+
+        const imageUrl = data.image_url || (currentSessionId ? "/api/image/" + currentSessionId : "");
+        const maxImageRetries = 3;
+        const imageRetryDelayMs = 1000;
+        let retryCount = 0;
+
+        haikuImage.onload = function () {
+          haikuImage.style.display = "block";
+          illustrationFallback.style.display = "none";
+          downloadBtn.href = imageUrl;
+          downloadBtn.style.display = "inline-flex";
+        };
+
+        haikuImage.onerror = function () {
+          haikuImage.style.display = "none";
+          illustrationFallback.style.display = "block";
+          downloadBtn.style.display = "none";
+
+          if (retryCount < maxImageRetries && imageUrl) {
+            retryCount += 1;
+            illustrationFallback.textContent = "Illustration en cours…";
+            imageRetryTimer = setTimeout(function () {
+              haikuImage.src = imageUrl + "?t=" + Date.now() + "&retry=" + retryCount;
+            }, imageRetryDelayMs);
+          } else {
+            illustrationFallback.textContent = "Illustration ukiyo-e non disponible pour cette session.";
+          }
+        };
+
+        if (imageUrl) {
+          illustrationFallback.textContent = "Illustration en cours…";
+          illustrationFallback.style.display = "block";
+          haikuImage.style.display = "none";
+          haikuImage.src = imageUrl + "?t=" + Date.now();
+          downloadBtn.href = imageUrl;
+          downloadBtn.style.display = "inline-flex";
+        } else {
+          haikuImage.style.display = "none";
+          illustrationFallback.textContent = "Illustration en cours…";
+          illustrationFallback.style.display = "block";
+          downloadBtn.style.display = "none";
+        }
+
+        approveBtn.disabled = false;
+        rejectBtn.disabled = false;
+        approvalStatus.textContent = "";
+        approvalStatus.className = "approval-status";
+
+        updateProgressStage(6, "Haïku composé et illustré !");
+        resultCard.classList.add("visible");
+      }
+
+      async function handleCreateHaiku(event) {
+        event.preventDefault();
+        clearError();
+
+        const city = cityInput.value.trim();
+        const season = seasonSelect.value;
+        const mood = moodInput.value.trim();
+
+        if (!city) {
+          showError("Veuillez renseigner le nom d'une ville pour créer votre haïku.");
+          cityInput.focus();
+          return;
+        }
+
+        createBtn.disabled = true;
+        resultCard.classList.remove("visible");
+        updateProgressStage(1, "Lancement de la session poétique…");
+
+        try {
+          const response = await fetch("/api/haiku", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              city: city,
+              season: season || "auto",
+              mood: mood || null
+            })
+          });
+
+          if (!response.ok) {
+            let errDetail = "Impossible de créer le haïku. Vérifiez votre saisie.";
+            try {
+              const errJson = await response.json();
+              if (typeof errJson.detail === "string") {
+                errDetail = errJson.detail;
+              } else if (Array.isArray(errJson.detail) && errJson.detail[0]?.msg) {
+                errDetail = errJson.detail[0].msg;
+              }
+            } catch (_) {}
+            throw new Error(errDetail);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+          let buffer = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+
+            const events = buffer.split("\n\n");
+            buffer = events.pop() || "";
+
+            for (const rawBlock of events) {
+              const lines = rawBlock.split("\n");
+              let eventType = "message";
+              let dataStr = "";
+
+              for (const line of lines) {
+                if (line.startsWith("event:")) {
+                  eventType = line.slice(6).trim();
+                } else if (line.startsWith("data:")) {
+                  dataStr += line.slice(5).trim();
+                }
+              }
+
+              if (eventType === "ping" || !dataStr) {
+                continue;
+              }
+
+              let payload;
+              try {
+                payload = JSON.parse(dataStr);
+              } catch (_) {
+                continue;
+              }
+
+              if (payload.ping) {
+                continue;
+              }
+
+              if (payload.error) {
+                throw new Error(payload.error);
+              }
+
+              if (payload.step && payload.label) {
+                const stage = STEP_TO_STAGE[payload.step] || 2;
+                updateProgressStage(stage, payload.label);
+              } else if (payload.haiku) {
+                renderHaikuCard(payload);
+              }
+            }
+          }
+        } catch (err) {
+          showError(err.message || "Une erreur est survenue lors de la création du haïku.");
+          progressSection.classList.remove("visible");
+        } finally {
+          createBtn.disabled = false;
+        }
+      }
+
+      async function sendApprovalDecision(approved) {
+        if (!currentSessionId) return;
+        clearError();
+        approveBtn.disabled = true;
+        rejectBtn.disabled = true;
+
+        try {
+          const response = await fetch("/api/approve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              session_id: currentSessionId,
+              approved: approved
+            })
+          });
+
+          if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.detail || "Erreur lors de la validation de publication.");
+          }
+
+          const result = await response.json();
+          approvalStatus.textContent = result.message;
+          approvalStatus.className = "approval-status " + (result.approved ? "approved" : "rejected");
+        } catch (err) {
+          showError(err.message || "Impossible d'enregistrer votre décision.");
+          approveBtn.disabled = false;
+          rejectBtn.disabled = false;
+        }
+      }
+
+      form.addEventListener("submit", handleCreateHaiku);
+      approveBtn.addEventListener("click", function () {
+        sendApprovalDecision(true);
+      });
+      rejectBtn.addEventListener("click", function () {
+        sendApprovalDecision(false);
+      });
+
+      copyBtn.addEventListener("click", async function () {
+        if (!currentPlainHaiku) return;
+        try {
+          await navigator.clipboard.writeText(currentPlainHaiku);
+          const original = copyBtn.textContent;
+          copyBtn.textContent = "✓ Haïku copié !";
+          setTimeout(function () {
+            copyBtn.textContent = original;
+          }, 2000);
+        } catch (_) {
+          showError("Impossible de copier automatiquement dans le presse-papiers.");
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
