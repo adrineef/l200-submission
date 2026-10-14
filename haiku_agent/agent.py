@@ -24,6 +24,7 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from pydantic import BaseModel, Field
 from .illustration_tool import generate_haiku_illustration
+from .season_tool import inject_season_callback
 
 
 # ---------------------------------------------------------------------------
@@ -579,6 +580,9 @@ HAIKU_CONSTITUTION = """
 4. Tu vérifies systématiquement tes syllabes avec l'outil `validate_haiku_syllables` avant de valider un poème.
 5. Toute publication finale requiert une validation humaine via `request_human_publication_approval`.
 6. N'utilise jamais d'interpréteur de code externe (`google:python_interpreter`) ; utilise uniquement les outils déclarés.
+7. Réponds en une phrase maximum : aucune question à l'utilisateur, aucune félicitation, aucune conversation.
+8. Ne reformule pas le haïku sauf si c'est ta tâche ; n'ajoute aucun commentaire.
+9. Après l'approbation de publication, ne produis rien d'autre que le résultat final.
 </constitution>
 """
 
@@ -609,6 +613,9 @@ kigo_research_agent = LlmAgent(
     model="gemini-2.5-flash",
     description="Selects authentic seasonal kigo motifs for the requested haiku theme.",
     instruction=(
+        "Date du jour : {current_date?}. Saison actuelle : {current_season?} (hémisphère nord). "
+        "Utilise cette saison, sauf si l'utilisateur en demande explicitement une autre. "
+        "Ne pose jamais de question sur la date ou la saison.\n"
         f"{HAIKU_CONSTITUTION}\n"
         "Your ONLY role in this step is to call `fetch_seasonal_kigo_catalog` for the season "
         "matching the user's topic and summarize the selected kigo words in plain text."
@@ -624,6 +631,9 @@ theme_imagery_agent = LlmAgent(
     model="gemini-2.5-flash",
     description="Extracts sensory nature imagery to pair with the seasonal kigo.",
     instruction=(
+        "Date du jour : {current_date?}. Saison actuelle : {current_season?} (hémisphère nord). "
+        "Utilise cette saison, sauf si l'utilisateur en demande explicitement une autre. "
+        "Ne pose jamais de question sur la date ou la saison.\n"
         f"{HAIKU_CONSTITUTION}\n"
         "Your ONLY role in this step is to describe concise visual and auditory nature imagery "
         "matching the user's request in plain text. Do not call any tools in this step."
@@ -685,9 +695,12 @@ haiku_illustrator_agent = LlmAgent(
     model="gemini-2.5-flash",
     description="Génère l'illustration du haïku validé.",
     instruction=(
-        "Haïku : {draft_haiku}\n"
-        "Appelle `generate_haiku_illustration` une seule fois avec un prompt visuel "
-        "décrivant la scène. Puis réponds : 'Illustration générée.' Rien d'autre."
+        "Tu es l'illustrateur. Haïku à illustrer : {draft_haiku?}\n"
+        "Tu DOIS appeler l'outil `generate_haiku_illustration` exactement une fois, "
+        "AVANT toute réponse, avec un prompt visuel court décrivant la scène du haïku. "
+        "Si le haïku est vide, utilise le thème d'un paysage d'automne à Paris. "
+        "Ensuite, dis 'Illustration générée.' seulement si status vaut success, "
+        "sinon dis que l'illustration a échoué."
     ),
     tools=[generate_haiku_illustration],
     output_key="illustration_result",
@@ -723,6 +736,7 @@ haiku_publisher_agent = LlmAgent(
 # Root SequentialAgent orchestrating Parallel -> Loop -> HITL Publisher
 root_agent = SequentialAgent(
     name="haiku_orchestrator_agent",
+    before_agent_callback=inject_season_callback,
     description="End-to-end multi-agent pipeline for researching, composing, validating, and publishing haikus.",
     sub_agents=[
         inspiration_parallel_agent,
