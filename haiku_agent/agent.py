@@ -644,10 +644,15 @@ haiku_composer_agent = LlmAgent(
     name="haiku_composer_agent",
     model="gemini-2.5-pro",
     description="Composes a 5-7-5 haiku incorporating the seasonal kigo and sensory imagery.",
-    instruction=(
+    static_instruction=(
         f"{HAIKU_CONSTITUTION}\n"
-        "Compose a 5-7-5 haiku using `{seasonal_context}` and `{sensory_imagery}`.\n"
+        "Compose a 5-7-5 haiku .\n"
+        #using `{seasonal_context}` and `{sensory_imagery}`.\n"
         "Validate your three lines using `validate_haiku_syllables`."
+    ),
+    instruction=(
+        "Seasonal context: {seasonal_context}\n"
+        "Sensory imagery: {sensory_imagery}\n"
     ),
     tools=ALL_HAIKU_TOOLS,
     output_key="draft_haiku",
@@ -659,16 +664,20 @@ haiku_critic_agent = LlmAgent(
     name="haiku_critic_agent",
     model="gemini-2.5-flash",
     description="Critiques syllable accuracy and kigo authenticity of the draft haiku.",
-    instruction=(
+    static_instruction=(
         f"{HAIKU_CONSTITUTION}\n"
-        "Verify `{draft_haiku}` using `validate_haiku_syllables`. "
+        "Verify the draft haiku using `validate_haiku_syllables`. "
         "If counts are [5, 7, 5], approve the draft in plain text without calling publication tools."
+    ),
+    instruction=(
+        "Draft haiku: {draft_haiku}\n"
     ),
     tools=ALL_HAIKU_TOOLS,
     output_key="critique_result",
     before_model_callback=guardrail_and_pii_before_model_callback,
     generate_content_config=types.GenerateContentConfig(safety_settings=SAFETY_SETTINGS),
 )
+
 
 # LoopAgent pattern for iterative poetic refinement (max 2 iterations)
 composition_refinement_loop = LoopAgent(
