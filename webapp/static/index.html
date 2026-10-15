@@ -90,7 +90,7 @@
 
     .form-grid {
       display: grid;
-      grid-template-columns: 1.4fr 1fr 1.2fr;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 1rem;
       align-items: end;
     }
@@ -105,6 +105,11 @@
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
+      min-width: 0;
+    }
+
+    .field-full {
+      grid-column: 1 / -1;
     }
 
     .field label {
@@ -117,6 +122,9 @@
 
     .field input,
     .field select {
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
       padding: 0.7rem 0.9rem;
       border: 1px solid var(--border-soft);
       border-radius: var(--radius-sm);
@@ -473,7 +481,7 @@
             </select>
           </div>
 
-          <div class="field">
+          <div class="field field-full">
             <label for="mood-input">Atmosphère (optionnel)</label>
             <input
               id="mood-input"

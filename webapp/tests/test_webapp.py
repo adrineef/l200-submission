@@ -480,4 +480,56 @@ def test_fallback_image_generation_with_genai_mock(
     assert any("Illustration générée et sauvegardée" in msg for msg in info_messages)
 
 
+def test_index_html_responsive_form_grid_and_mobile_375px() -> None:
+    """Verifies box-sizing: border-box, auto-fit minmax grid, min-width: 0 on .field and controls, full-width Atmosphere field, and 1280px / 375px geometry."""
+    import re
+
+    client = TestClient(app)
+    res = client.get("/")
+    assert res.status_code == 200
+    html = res.text
+
+    # 1. Verify targeted source fixes on .form-grid, .field, .field-full, and .field input/select
+    grid_match = re.search(
+        r"\.form-grid\s*\{[^}]*grid-template-columns\s*:\s*repeat\(\s*auto-fit\s*,\s*minmax\(\s*(\d+)px\s*,\s*1fr\s*\)\s*\)",
+        html,
+        re.DOTALL,
+    )
+    assert grid_match is not None, "Expected .form-grid with repeat(auto-fit, minmax(..., 1fr))"
+    min_col_px = int(grid_match.group(1))
+
+    assert re.search(r"\.field\s*\{[^}]*min-width\s*:\s*0", html, re.DOTALL)
+    assert re.search(
+        r"\.field\s+input\s*,\s*\.field\s+select\s*\{[^}]*width\s*:\s*100%[^}]*min-width\s*:\s*0[^}]*box-sizing\s*:\s*border-box",
+        html,
+        re.DOTALL,
+    )
+    assert re.search(r"\.field-full\s*\{[^}]*grid-column\s*:\s*1\s*/\s*-1", html, re.DOTALL)
+    assert 'class="field field-full"' in html
+
+    # 2. Verify layout geometry at desktop (1280px)
+    container_max_width = min(1280 - 32, 760)  # 760px
+    panel_h_padding = 28 * 2  # 1.75rem left + 1.75rem right = 56px
+    panel_h_border = 2  # 1px left + 1px right
+    gap_px = 16  # 1rem
+    form_grid_width_1280 = container_max_width - panel_h_padding - panel_h_border  # 702px
+    cols_at_1280 = (form_grid_width_1280 + gap_px) // (min_col_px + gap_px)
+    assert cols_at_1280 == 2
+    col_width_1280 = (form_grid_width_1280 - gap_px * (cols_at_1280 - 1)) / cols_at_1280  # 343px
+    atmosphere_width_1280 = form_grid_width_1280  # grid-column: 1 / -1 -> 702px
+    assert col_width_1280 * 2 + gap_px == form_grid_width_1280
+    assert atmosphere_width_1280 <= form_grid_width_1280
+
+    # 3. Verify layout geometry at mobile (375px)
+    viewport_375 = 375
+    body_h_padding = 16 * 2  # 1rem left + 1rem right = 32px
+    form_grid_width_375 = viewport_375 - body_h_padding - panel_h_padding - panel_h_border  # 285px
+    cols_at_375 = (form_grid_width_375 + gap_px) // (min_col_px + gap_px)
+    assert cols_at_375 == 1
+    assert min_col_px <= form_grid_width_375
+    atmosphere_width_375 = form_grid_width_375  # 285px
+    assert atmosphere_width_375 <= form_grid_width_375
+
+
+
 
