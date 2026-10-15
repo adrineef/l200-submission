@@ -85,7 +85,12 @@ def test_constitution_compaction_and_multi_agent_architecture() -> None:
     assert app.events_compaction_config is not None
     assert app.events_compaction_config.compaction_interval == 5
     assert root_agent.name == "haiku_orchestrator_agent"
-    assert len(root_agent.sub_agents) == 3
+    assert [a.name for a in root_agent.sub_agents] == [
+        "inspiration_parallel_agent",
+        "composition_refinement_loop",
+        "haiku_illustrator_agent",
+        "haiku_publisher_agent",
+    ]
 
     schema = HaikuStructuredOutput(
         theme="autumn",
