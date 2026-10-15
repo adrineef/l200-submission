@@ -386,3 +386,98 @@ def test_illustration_retry_and_logging(
     assert any(rec.levelname == "ERROR" for rec in caplog.records)
 
 
+def test_fallback_image_generation_with_genai_mock(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Verifies direct google.genai fallback image generation via asyncio.to_thread and save_artifact when haiku_illustration.png is absent."""
+    recorded_client_kwargs: list[dict[str, Any]] = []
+    recorded_generate_calls: list[dict[str, Any]] = []
+    fallback_png = b"\x89PNG\r\n\x1a\nDIRECT_GENAI_FALLBACK_IMAGE"
+
+    class FakeModels:
+        def generate_content(self, *, model: str, contents: str, **kwargs: Any) -> Any:
+            recorded_generate_calls.append({"model": model, "contents": contents})
+            part = SimpleNamespace(
+                inline_data=SimpleNamespace(data=fallback_png, mime_type="image/png")
+            )
+            candidate = SimpleNamespace(content=SimpleNamespace(parts=[part]))
+            return SimpleNamespace(candidates=[candidate])
+
+    class FakeGenaiClient:
+        def __init__(self, **kwargs: Any) -> None:
+            recorded_client_kwargs.append(kwargs)
+            self.models = FakeModels()
+
+    monkeypatch.setattr(server_module.genai, "Client", FakeGenaiClient)
+
+    async def fake_run_async_without_image(
+        *,
+        user_id: str,
+        session_id: str,
+        new_message: Any = None,
+        **kwargs: Any,
+    ) -> AsyncGenerator[Any, None]:
+        """Simulates ADK pipeline finishing without saving haiku_illustration.png."""
+        fc = SimpleNamespace(
+            id="hitl-fallback-1",
+            name="request_human_publication_approval",
+            args={
+                "haiku_text": (
+                    "Silent winter snow\n"
+                    "Frozen stream beneath the pines\n"
+                    "Cold wind over peaks"
+                ),
+                "theme": "winter",
+            },
+        )
+        yield _make_fake_event(
+            author="haiku_publisher_agent",
+            function_calls=[fc],
+            long_running_tool_ids={"hitl-fallback-1"},
+        )
+
+    monkeypatch.setattr(server_module.runner, "run_async", fake_run_async_without_image)
+
+    client = TestClient(app)
+    with caplog.at_level("INFO"):
+        response = client.post(
+            "/api/haiku",
+            json={"city": "Chamonix", "season": "hiver", "mood": "calme"},
+        )
+
+    assert response.status_code == 200
+    data_payloads = [
+        json.loads(line[len("data: ") :])
+        for line in response.text.splitlines()
+        if line.startswith("data: ")
+    ]
+    result_items = [p for p in data_payloads if "haiku" in p]
+    assert len(result_items) == 1
+    session_id = result_items[0]["session_id"]
+
+    # Verify genai.Client(vertexai=True, location="global") and model gemini-2.5-flash-image
+    assert len(recorded_client_kwargs) == 1
+    assert recorded_client_kwargs[0]["vertexai"] is True
+    assert recorded_client_kwargs[0]["location"] == "global"
+
+    assert len(recorded_generate_calls) == 1
+    assert recorded_generate_calls[0]["model"] == "gemini-2.5-flash-image"
+    prompt_sent = recorded_generate_calls[0]["contents"]
+    assert "Silent winter snow" in prompt_sent
+    assert "Frozen stream beneath the pines" in prompt_sent
+    assert "Cold wind over peaks" in prompt_sent
+    assert "hiver" in prompt_sent.lower() or "winter" in prompt_sent.lower()
+
+    # Verify artifact was saved via runner.artifact_service.save_artifact and served on GET /api/image/{session_id}
+    img_resp = client.get(f"/api/image/{session_id}")
+    assert img_resp.status_code == 200
+    assert img_resp.content == fallback_png
+
+    # Verify logger.info before and after
+    info_messages = [rec.getMessage() for rec in caplog.records if rec.levelname == "INFO"]
+    assert any("Démarrage de la génération directe" in msg for msg in info_messages)
+    assert any("Illustration générée et sauvegardée" in msg for msg in info_messages)
+
+
+

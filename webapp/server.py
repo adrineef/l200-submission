@@ -12,6 +12,7 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from google import genai
 from google.adk.apps.app import ResumabilityConfig
 from google.adk.artifacts import InMemoryArtifactService
 from google.adk.runners import Runner
@@ -719,6 +720,106 @@ async def load_illustration_with_retry(
     return None
 
 
+def _generate_haiku_image_sync(haiku_lines: List[str], season: str) -> Any:
+    """Calls Gemini image generation synchronously via Vertex AI (`gemini-2.5-flash-image`).
+
+    Args:
+        haiku_lines: The 3 lines of the final haiku.
+        season: Season associated with the haiku.
+
+    Returns:
+        Raw `GenerateContentResponse` returned by `client.models.generate_content`.
+    """
+    client = genai.Client(vertexai=True, location="global")
+    poem_text = "\n".join(line.strip() for line in haiku_lines[:3] if line.strip())
+    prompt = (
+        "Japanese ukiyo-e / sumi-e illustration, soft colors, no text. "
+        f"Season: {season}. Haiku:\n{poem_text}"
+    )
+    return client.models.generate_content(
+        model="gemini-2.5-flash-image",
+        contents=prompt,
+    )
+
+
+async def generate_missing_illustration(
+    app_name: str,
+    user_id: str,
+    session_id: str,
+    haiku_lines: List[str],
+    season: str,
+    filename: str = ILLUSTRATION_ARTIFACT_NAME,
+) -> Optional[types.Part]:
+    """Generates and saves `haiku_illustration.png` when absent after the ADK pipeline.
+
+    Executes the blocking `google.genai` `generate_content` call inside `asyncio.to_thread`,
+    saves the PNG via `runner.artifact_service.save_artifact`, logs `logger.info` before and
+    after generation, and logs `logger.exception` on any error.
+
+    Args:
+        app_name: ADK application name.
+        user_id: User identifier.
+        session_id: Session identifier.
+        haiku_lines: List of the 3 lines of the final haiku.
+        season: Season name used to contextualize the visual prompt.
+        filename: Target artifact filename (`'haiku_illustration.png'`).
+
+    Returns:
+        Saved `types.Part` containing the PNG illustration, or `None` if generation failed.
+    """
+    cleaned_lines = [str(line).strip() for line in haiku_lines if str(line).strip()][:3]
+    clean_season = (season or "auto").strip() or "auto"
+    logger.info(
+        "Démarrage de la génération directe de l'illustration (gemini-2.5-flash-image) pour la session %s (saison=%s, lignes=%d)",
+        session_id,
+        clean_season,
+        len(cleaned_lines),
+    )
+    try:
+        response = await asyncio.to_thread(
+            _generate_haiku_image_sync,
+            cleaned_lines,
+            clean_season,
+        )
+        candidates = getattr(response, "candidates", None) or []
+        for candidate in candidates:
+            content = getattr(candidate, "content", None)
+            parts = getattr(content, "parts", None) or []
+            for part in parts:
+                inline_data = getattr(part, "inline_data", None)
+                if inline_data and getattr(inline_data, "data", None):
+                    mime_type = getattr(inline_data, "mime_type", None) or "image/png"
+                    artifact_part = types.Part.from_bytes(
+                        data=inline_data.data,
+                        mime_type=mime_type,
+                    )
+                    if runner.artifact_service is not None:
+                        await runner.artifact_service.save_artifact(
+                            app_name=app_name,
+                            user_id=user_id,
+                            session_id=session_id,
+                            filename=filename,
+                            artifact=artifact_part,
+                        )
+                    logger.info(
+                        "Illustration générée et sauvegardée dans %s pour la session %s",
+                        filename,
+                        session_id,
+                    )
+                    return artifact_part
+        logger.info(
+            "Fin de la génération d'illustration pour la session %s : aucune image retournée",
+            session_id,
+        )
+        return None
+    except Exception:
+        logger.exception(
+            "Erreur lors de la génération directe de l'illustration pour la session %s",
+            session_id,
+        )
+        return None
+
+
 # ---------------------------------------------------------------------------
 # FastAPI Application & Security Middleware
 # ---------------------------------------------------------------------------
@@ -899,31 +1000,19 @@ async def create_haiku_stream(request_body: HaikuCreateRequest) -> StreamingResp
                         if hitl_call_id and getattr(event, "long_running_tool_ids", None):
                             break
 
-                # Après le flux : charge haiku_illustration.png via runner.artifact_service.load_artifact
-                artifact_part = await load_illustration_with_retry(
+                current_session = await session_service.get_session(
                     app_name=adk_app.name,
                     user_id=DEFAULT_USER_ID,
                     session_id=session_id,
-                    filename=ILLUSTRATION_ARTIFACT_NAME,
-                    max_retries=ILLUSTRATION_MAX_RETRIES,
-                    retry_delay=ILLUSTRATION_RETRY_DELAY_SECONDS,
-                    progress_queue=queue,
                 )
-                if artifact_part is not None:
-                    _SESSION_REGISTRY[session_id]["artifact_part"] = artifact_part
+                current_state = (
+                    dict(current_session.state)
+                    if current_session and hasattr(current_session, "state")
+                    else {}
+                )
 
                 # Fallback check if result was stored in session state
                 if final_result_payload is None:
-                    current_session = await session_service.get_session(
-                        app_name=adk_app.name,
-                        user_id=DEFAULT_USER_ID,
-                        session_id=session_id,
-                    )
-                    current_state = (
-                        dict(current_session.state)
-                        if current_session and hasattr(current_session, "state")
-                        else {}
-                    )
                     published = current_state.get("published_haiku")
                     structured = _extract_publisher_structured_dict(published)
                     if structured:
@@ -949,6 +1038,48 @@ async def create_haiku_stream(request_body: HaikuCreateRequest) -> StreamingResp
                             "image_url": f"/api/image/{session_id}",
                             "awaiting_approval": True,
                         }
+
+                # Après la fin du pipeline : vérifie si haiku_illustration.png est présent,
+                # sinon génère l'image directement avec google.genai dans asyncio.to_thread
+                artifact_part = await _call_load_artifact(
+                    app_name=adk_app.name,
+                    user_id=DEFAULT_USER_ID,
+                    session_id=session_id,
+                    filename=ILLUSTRATION_ARTIFACT_NAME,
+                )
+                if artifact_part is None and final_result_payload is not None:
+                    haiku_lines = list(
+                        final_result_payload.get("lines")
+                        or split_haiku_lines(str(final_result_payload.get("haiku") or ""))
+                    )
+                    resolved_season = str(
+                        current_state.get("active_season")
+                        or current_state.get("current_season")
+                        or validated.get("season")
+                        or final_result_payload.get("theme")
+                        or "auto"
+                    )
+                    ill_step = AGENT_PROGRESS_STEPS["haiku_illustrator_agent"]
+                    if ill_step["step"] not in emitted_steps:
+                        emitted_steps.add(ill_step["step"])
+                        await queue.put(format_sse_message(ill_step))
+
+                    await generate_missing_illustration(
+                        app_name=adk_app.name,
+                        user_id=DEFAULT_USER_ID,
+                        session_id=session_id,
+                        haiku_lines=haiku_lines,
+                        season=resolved_season,
+                        filename=ILLUSTRATION_ARTIFACT_NAME,
+                    )
+                    artifact_part = await _call_load_artifact(
+                        app_name=adk_app.name,
+                        user_id=DEFAULT_USER_ID,
+                        session_id=session_id,
+                        filename=ILLUSTRATION_ARTIFACT_NAME,
+                    )
+                if artifact_part is not None:
+                    _SESSION_REGISTRY[session_id]["artifact_part"] = artifact_part
 
                 if final_result_payload is not None:
                     _SESSION_REGISTRY[session_id]["result_payload"] = final_result_payload
